@@ -7,6 +7,8 @@ from kinesis.experiments.exp001.csv_export import (
     build_analysis_csv_row,
 )
 from kinesis.experiments.exp001.metrics import calculate_frame_metrics
+from kinesis.experiments.exp001.quality import MetricQualityEvaluator
+from kinesis.experiments.exp001.smoothing import MetricSmoother
 from kinesis.experiments.exp001.types import Landmark
 
 
@@ -50,16 +52,28 @@ def test_calculate_frame_metrics_returns_none_for_missing_visible_points() -> No
 def test_build_analysis_csv_row_contains_timestamps_landmarks_and_metrics() -> None:
     landmarks = [Landmark(x=0.1, y=0.2, z=-0.3, visibility=0.9, presence=0.8)]
     metrics = calculate_frame_metrics(landmarks, visibility_threshold=0.5)
+    quality = MetricQualityEvaluator(
+        visibility_threshold=0.5,
+        min_average_visibility=0.5,
+    ).evaluate(pose_landmarks=landmarks, metrics=metrics)
+    smoothed_metrics = MetricSmoother(window_size=3).smooth(
+        metrics=metrics,
+        quality=quality,
+    )
 
     row = build_analysis_csv_row(
         frame_index=12,
         timestamp_ms=400,
         pose_landmarks=landmarks,
         metrics=metrics,
+        metric_quality=quality,
+        smoothed_metrics=smoothed_metrics,
     )
 
     assert "landmark_00_nose_x" in analysis_csv_fieldnames()
     assert "shoulder_height_asymmetry" in analysis_csv_fieldnames()
+    assert "shoulder_height_asymmetry_quality" in analysis_csv_fieldnames()
+    assert "smoothed_shoulder_height_asymmetry" in analysis_csv_fieldnames()
     assert row["frame_index"] == 12
     assert row["timestamp_ms"] == 400
     assert row["timestamp_seconds"] == 0.4
@@ -67,6 +81,9 @@ def test_build_analysis_csv_row_contains_timestamps_landmarks_and_metrics() -> N
     assert row["landmark_00_nose_x"] == 0.1
     assert row["landmark_00_nose_visibility"] == 0.9
     assert row["shoulder_height_asymmetry"] is None
+    assert row["shoulder_height_asymmetry_quality"] is False
+    assert row["shoulder_height_asymmetry_quality_reason"] == "missing_metric"
+    assert row["smoothed_shoulder_height_asymmetry"] is None
 
 
 def _empty_landmarks() -> list[Landmark]:

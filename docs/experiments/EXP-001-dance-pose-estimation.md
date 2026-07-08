@@ -24,10 +24,14 @@ VideoPoseProcessor
         +-- OpenCV reads and writes video frames
         +-- MediaPipe Pose Landmarker detects landmarks
         +-- metrics.py calculates frame-level movement measurements
+        +-- quality.py marks frame metrics as usable or excluded
+        +-- smoothing.py smooths usable metric values
         +-- csv_export.py writes analysis-ready frame data
         +-- drawing.py overlays a skeleton
         +-- movement_summary.py builds non-medical summary text
-        +-- outputs/ stores processed video, CSV, and key frames
+        +-- plots.py writes time-series plot images
+        +-- manifest.py writes run metadata
+        +-- outputs/ stores processed video, CSV, plots, manifest, and key frames
 ```
 
 The app is intentionally thin. It handles upload and display only. The processing logic lives in `src/kinesis/experiments/exp001`, which makes it testable and reusable from a CLI, notebook, API, or future product UI.
@@ -58,7 +62,43 @@ The CSV includes:
 - One set of normalized raw landmark columns for each MediaPipe pose landmark: `x`, `y`, `z`, `visibility`, and `presence`.
 - The calculated movement metric columns listed above.
 
+EXP-001.1 adds quality and smoothing columns:
+
+- `*_quality`: whether the raw metric passed basic usability checks.
+- `*_quality_reason`: why the metric was kept or excluded.
+- `quality_usable_metric_count`: how many metrics were usable in that frame.
+- `smoothed_*`: moving-average values calculated only from usable metric values.
+
 The CSV currently stores normalized image-space landmarks, not MediaPipe world landmarks. World coordinates can be added later when we have validation data and a clear reason to use them.
+
+## Quality Control
+
+The first version of movement analysis intentionally uses simple, inspectable quality rules:
+
+- Required landmarks must be present and above the landmark visibility threshold.
+- Average landmark visibility must pass `metric_min_average_visibility`.
+- Values must stay inside broad image-space plausibility bounds.
+- Sudden frame-to-frame jumps are excluded for metrics where a single-frame spike is usually less useful than a stable trend.
+
+These rules are not scientific validation. They are engineering guardrails that prevent obvious landmark failures from dominating plots and summaries.
+
+## Smoothing
+
+EXP-001.1 applies a moving average to quality-passing metric values. Raw values remain in the CSV, and smoothed values are written separately. This is intentional: raw values are needed for debugging; smoothed values are better for human-readable summaries and plots.
+
+Default smoothing is `5` processed frames.
+
+## Run Manifest
+
+Every processed run writes `run_manifest.json`.
+
+The manifest records:
+
+- input path and file name
+- output video, CSV, key frame, plot, and manifest paths
+- reported frame count, processed frame count, FPS, width, and height
+- MediaPipe and analysis configuration
+- movement summary values and metric usage counts
 
 ## Key Decisions
 
@@ -84,8 +124,12 @@ EXP-001 keeps analysis code split by responsibility:
 
 - `landmarks.py`: shared MediaPipe landmark access helpers.
 - `metrics.py`: deterministic frame-level calculations.
+- `quality.py`: metric usability rules.
+- `smoothing.py`: moving-average smoothing over usable values.
 - `csv_export.py`: CSV schema and row construction.
 - `movement_summary.py`: human-readable, non-medical summary language.
+- `plots.py`: plot generation for quick visual review.
+- `manifest.py`: repeatable run metadata.
 
 This makes debugging easier because video IO, metric math, export formatting, and UI presentation can be tested separately.
 
@@ -102,6 +146,8 @@ MediaPipe `.task` files are generated/downloaded assets. They belong in `models/
 5. Confirm a skeleton overlay appears in the output video or key frames.
 6. Download the movement CSV.
 7. Review the Movement Summary below the Run Summary.
+8. Inspect the metric plots.
+9. Save the run manifest with any notes about the video and setup.
 
 ## Next Learning Steps
 
@@ -111,6 +157,7 @@ MediaPipe `.task` files are generated/downloaded assets. They belong in `models/
 - Add confidence overlays and failure states for frames where no pose is detected.
 - Add world-coordinate export once there is a clear analysis need.
 - Add repeatable sample-video tests with known expected landmark behavior.
+- Add a review workflow for marking suspicious metric regions in a run.
 
 ## Non-Goals
 

@@ -12,6 +12,8 @@ class PoseEstimationConfig:
     min_pose_presence_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
     landmark_visibility_threshold: float = 0.5
+    metric_min_average_visibility: float = 0.5
+    smoothing_window_frames: int = 5
     max_keyframes: int = 6
     frame_stride: int = 1
 
@@ -22,12 +24,15 @@ class PoseEstimationConfig:
             raise ValueError("max_keyframes must be 0 or greater.")
         if self.frame_stride < 1:
             raise ValueError("frame_stride must be at least 1.")
+        if self.smoothing_window_frames < 1:
+            raise ValueError("smoothing_window_frames must be at least 1.")
 
         confidence_values = {
             "min_pose_detection_confidence": self.min_pose_detection_confidence,
             "min_pose_presence_confidence": self.min_pose_presence_confidence,
             "min_tracking_confidence": self.min_tracking_confidence,
             "landmark_visibility_threshold": self.landmark_visibility_threshold,
+            "metric_min_average_visibility": self.metric_min_average_visibility,
         }
         for name, value in confidence_values.items():
             if not 0 <= value <= 1:
@@ -38,4 +43,3 @@ class PoseEstimationConfig:
                 f"MediaPipe model not found: {self.model_path}. "
                 "Download pose_landmarker_full.task into models/ first."
             )
-

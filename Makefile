@@ -14,5 +14,4 @@ format:
 	ruff format src tests apps
 
 exp001-app:
-	streamlit run apps/exp001_streamlit.py
-
+	PYTHONPATH=src streamlit run apps/exp001_streamlit.py

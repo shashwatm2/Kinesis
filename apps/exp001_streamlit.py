@@ -26,6 +26,20 @@ def main() -> None:
     )
     model_path = model_path_input if model_path_input.is_absolute() else ROOT / model_path_input
     max_keyframes = st.slider("Key frames", min_value=1, max_value=12, value=6)
+    with st.expander("Analysis settings"):
+        metric_min_average_visibility = st.slider(
+            "Minimum average landmark visibility",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.05,
+        )
+        smoothing_window_frames = st.slider(
+            "Smoothing window",
+            min_value=1,
+            max_value=15,
+            value=5,
+        )
 
     if uploaded_video is None:
         return
@@ -47,6 +61,8 @@ def main() -> None:
         config = PoseEstimationConfig(
             model_path=model_path,
             max_keyframes=max_keyframes,
+            metric_min_average_visibility=metric_min_average_visibility,
+            smoothing_window_frames=smoothing_window_frames,
         )
 
         try:
@@ -71,6 +87,7 @@ def main() -> None:
                 "fps": round(summary.fps, 2),
                 "output": str(summary.output_video_path),
                 "movement_csv": str(summary.analysis_csv_path),
+                "manifest": str(summary.manifest_path),
             }
         )
 
@@ -84,6 +101,17 @@ def main() -> None:
             file_name=summary.analysis_csv_path.name,
             mime="text/csv",
         )
+        st.download_button(
+            "Download run manifest",
+            data=summary.manifest_path.read_bytes(),
+            file_name=summary.manifest_path.name,
+            mime="application/json",
+        )
+
+        if summary.plot_paths:
+            st.subheader("Metric Plots")
+            for plot_path in summary.plot_paths:
+                st.image(str(plot_path), caption=plot_path.name)
 
         if summary.keyframe_paths:
             st.subheader("Key Frames")

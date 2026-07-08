@@ -3,13 +3,21 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from kinesis.experiments.exp001.metrics import FrameMetrics
+from kinesis.experiments.exp001.frame_analysis import FrameAnalysis
+from kinesis.experiments.exp001.metrics import METRIC_COLUMNS
 
 
 @dataclass(frozen=True)
 class MetricRange:
     minimum: float | None
     maximum: float | None
+
+
+@dataclass(frozen=True)
+class MetricUsage:
+    usable_frames: int
+    excluded_frames: int
+    total_frames: int
 
 
 @dataclass(frozen=True)
@@ -26,10 +34,11 @@ class MovementSummary:
     left_elbow_angle_degrees: MetricRange
     right_elbow_angle_degrees: MetricRange
     center_of_body_x: MetricRange
+    metric_usage: dict[str, MetricUsage]
 
 
 def summarize_movement(
-    metrics_by_frame: Sequence[FrameMetrics],
+    frame_analyses: Sequence[FrameAnalysis],
     *,
     processed_frames: int,
     frames_with_pose: int,
@@ -43,17 +52,23 @@ def summarize_movement(
         frames_with_pose=frames_with_pose,
         pose_detection_rate=pose_detection_rate,
         average_shoulder_height_asymmetry=_average(
-            metrics_by_frame,
+            frame_analyses,
             "shoulder_height_asymmetry",
         ),
-        average_hip_height_asymmetry=_average(metrics_by_frame, "hip_height_asymmetry"),
-        average_landmark_visibility=_average(metrics_by_frame, "average_landmark_visibility"),
-        torso_lean_angle_degrees=_range(metrics_by_frame, "torso_lean_angle_degrees"),
-        left_knee_angle_degrees=_range(metrics_by_frame, "left_knee_angle_degrees"),
-        right_knee_angle_degrees=_range(metrics_by_frame, "right_knee_angle_degrees"),
-        left_elbow_angle_degrees=_range(metrics_by_frame, "left_elbow_angle_degrees"),
-        right_elbow_angle_degrees=_range(metrics_by_frame, "right_elbow_angle_degrees"),
-        center_of_body_x=_range(metrics_by_frame, "center_of_body_x"),
+        average_hip_height_asymmetry=_average(frame_analyses, "hip_height_asymmetry"),
+        average_landmark_visibility=_average_raw(
+            frame_analyses,
+            "average_landmark_visibility",
+        ),
+        torso_lean_angle_degrees=_range(frame_analyses, "torso_lean_angle_degrees"),
+        left_knee_angle_degrees=_range(frame_analyses, "left_knee_angle_degrees"),
+        right_knee_angle_degrees=_range(frame_analyses, "right_knee_angle_degrees"),
+        left_elbow_angle_degrees=_range(frame_analyses, "left_elbow_angle_degrees"),
+        right_elbow_angle_degrees=_range(frame_analyses, "right_elbow_angle_degrees"),
+        center_of_body_x=_range(frame_analyses, "center_of_body_x"),
+        metric_usage={
+            metric_name: _usage(frame_analyses, metric_name) for metric_name in METRIC_COLUMNS
+        },
     )
 
 
@@ -75,6 +90,10 @@ def movement_summary_lines(summary: MovementSummary) -> list[str]:
             "Average landmark visibility/confidence was "
             f"{summary.average_landmark_visibility:.2f}."
         )
+
+    lines.append(
+        "Movement values below use quality-filtered, smoothed frame measurements."
+    )
 
     if (
         summary.average_shoulder_height_asymmetry is not None
@@ -104,6 +123,8 @@ def movement_summary_lines(summary: MovementSummary) -> list[str]:
             "of frame width."
         )
 
+    lines.append(f"Quality-filtered frames used: {_usage_summary_text(summary)}.")
+
     joint_lines = _joint_range_lines(summary)
     if joint_lines:
         lines.extend(joint_lines)
@@ -113,26 +134,59 @@ def movement_summary_lines(summary: MovementSummary) -> list[str]:
     return lines
 
 
-def _average(metrics_by_frame: Sequence[FrameMetrics], field_name: str) -> float | None:
+def _average(frame_analyses: Sequence[FrameAnalysis], field_name: str) -> float | None:
     values = [
         value
-        for metrics in metrics_by_frame
-        if (value := getattr(metrics, field_name)) is not None
+        for analysis in frame_analyses
+        if (value := _quality_smoothed_value(analysis, field_name)) is not None
     ]
     if not values:
         return None
     return sum(values) / len(values)
 
 
-def _range(metrics_by_frame: Sequence[FrameMetrics], field_name: str) -> MetricRange:
+def _average_raw(frame_analyses: Sequence[FrameAnalysis], field_name: str) -> float | None:
     values = [
         value
-        for metrics in metrics_by_frame
-        if (value := getattr(metrics, field_name)) is not None
+        for analysis in frame_analyses
+        if (value := getattr(analysis.raw_metrics, field_name)) is not None
+    ]
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def _range(frame_analyses: Sequence[FrameAnalysis], field_name: str) -> MetricRange:
+    values = [
+        value
+        for analysis in frame_analyses
+        if (value := _quality_smoothed_value(analysis, field_name)) is not None
     ]
     if not values:
         return MetricRange(minimum=None, maximum=None)
     return MetricRange(minimum=min(values), maximum=max(values))
+
+
+def _usage(frame_analyses: Sequence[FrameAnalysis], field_name: str) -> MetricUsage:
+    total_frames = len(frame_analyses)
+    usable_frames = sum(
+        1
+        for analysis in frame_analyses
+        if analysis.metric_quality.get(field_name) is not None
+        and analysis.metric_quality[field_name].usable
+    )
+    return MetricUsage(
+        usable_frames=usable_frames,
+        excluded_frames=total_frames - usable_frames,
+        total_frames=total_frames,
+    )
+
+
+def _quality_smoothed_value(analysis: FrameAnalysis, field_name: str) -> float | None:
+    quality = analysis.metric_quality.get(field_name)
+    if quality is None or not quality.usable:
+        return None
+    return getattr(analysis.smoothed_metrics, field_name)
 
 
 def _joint_range_lines(summary: MovementSummary) -> list[str]:
@@ -165,6 +219,24 @@ def _paired_range_text(left: MetricRange, right: MetricRange) -> str | None:
     return ", ".join(parts)
 
 
+def _usage_summary_text(summary: MovementSummary) -> str:
+    usage_items = (
+        ("torso lean", "torso_lean_angle_degrees"),
+        ("center x", "center_of_body_x"),
+        ("left knee", "left_knee_angle_degrees"),
+        ("right knee", "right_knee_angle_degrees"),
+        ("left elbow", "left_elbow_angle_degrees"),
+        ("right elbow", "right_elbow_angle_degrees"),
+    )
+    parts = []
+    for label, metric_name in usage_items:
+        usage = summary.metric_usage.get(metric_name)
+        if usage is None:
+            continue
+        parts.append(f"{label} {usage.usable_frames}/{usage.total_frames}")
+    return ", ".join(parts) if parts else "not available"
+
+
 def _range_available(metric_range: MetricRange) -> bool:
     return metric_range.minimum is not None and metric_range.maximum is not None
 
@@ -183,4 +255,3 @@ def _format_normalized_percent(value: float | None) -> str:
     if value is None:
         return "not available"
     return f"{value * 100:.1f}%"
-

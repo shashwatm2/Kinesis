@@ -63,6 +63,18 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help="Minimum pose tracking confidence.",
     )
+    process_parser.add_argument(
+        "--metric-min-average-visibility",
+        default=0.5,
+        type=float,
+        help="Minimum average landmark visibility for metric quality checks.",
+    )
+    process_parser.add_argument(
+        "--smoothing-window",
+        default=5,
+        type=int,
+        help="Moving-average window size for smoothed metric values.",
+    )
 
     return parser
 
@@ -79,6 +91,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             min_pose_detection_confidence=args.min_detection_confidence,
             min_pose_presence_confidence=args.min_presence_confidence,
             min_tracking_confidence=args.min_tracking_confidence,
+            metric_min_average_visibility=args.metric_min_average_visibility,
+            smoothing_window_frames=args.smoothing_window,
         )
         summary = process_video(
             input_path=args.input,
@@ -89,9 +103,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Frames with pose: {summary.frames_with_pose}")
         print(f"Output video: {summary.output_video_path}")
         print(f"Movement CSV: {summary.analysis_csv_path}")
+        print(f"Run manifest: {summary.manifest_path}")
         print("Movement summary:")
         for line in movement_summary_lines(summary.movement_summary):
             print(f"  - {line}")
+        if summary.plot_paths:
+            print("Metric plots:")
+            for path in summary.plot_paths:
+                print(f"  {path}")
         if summary.keyframe_paths:
             print("Key frames:")
             for path in summary.keyframe_paths:

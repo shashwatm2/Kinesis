@@ -11,8 +11,13 @@ from kinesis.experiments.exp001.csv_export import (
     build_analysis_csv_row,
 )
 from kinesis.experiments.exp001.drawing import draw_pose_landmarks, extract_keyframe_indices
-from kinesis.experiments.exp001.metrics import FrameMetrics, calculate_frame_metrics
+from kinesis.experiments.exp001.frame_analysis import FrameAnalysis
+from kinesis.experiments.exp001.manifest import write_run_manifest
+from kinesis.experiments.exp001.metrics import calculate_frame_metrics
 from kinesis.experiments.exp001.movement_summary import MovementSummary, summarize_movement
+from kinesis.experiments.exp001.plots import create_metric_plots
+from kinesis.experiments.exp001.quality import MetricQualityEvaluator
+from kinesis.experiments.exp001.smoothing import MetricSmoother
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,8 @@ class ProcessingSummary:
     input_path: Path
     output_video_path: Path
     analysis_csv_path: Path
+    manifest_path: Path
+    plot_paths: list[Path]
     keyframe_paths: list[Path]
     movement_summary: MovementSummary
     total_frames: int
@@ -48,6 +55,7 @@ def process_video(
     output_dir.mkdir(parents=True, exist_ok=True)
     output_video_path = output_dir / (output_name or f"{input_path.stem}_pose_overlay.mp4")
     analysis_csv_path = output_dir / f"{input_path.stem}_movement_analysis.csv"
+    manifest_path = output_dir / "run_manifest.json"
 
     capture = cv2.VideoCapture(str(input_path))
     if not capture.isOpened():
@@ -71,7 +79,12 @@ def process_video(
 
     keyframe_indices = set(extract_keyframe_indices(total_frames, config.max_keyframes))
     keyframe_paths: list[Path] = []
-    metrics_by_frame: list[FrameMetrics] = []
+    frame_analyses: list[FrameAnalysis] = []
+    quality_evaluator = MetricQualityEvaluator(
+        visibility_threshold=config.landmark_visibility_threshold,
+        min_average_visibility=config.metric_min_average_visibility,
+    )
+    smoother = MetricSmoother(window_size=config.smoothing_window_frames)
     processed_frames = 0
     frames_with_pose = 0
     source_frame_index = 0
@@ -107,13 +120,30 @@ def process_video(
                     primary_pose_landmarks,
                     visibility_threshold=config.landmark_visibility_threshold,
                 )
-                metrics_by_frame.append(metrics)
+                metric_quality = quality_evaluator.evaluate(
+                    pose_landmarks=primary_pose_landmarks,
+                    metrics=metrics,
+                )
+                smoothed_metrics = smoother.smooth(
+                    metrics=metrics,
+                    quality=metric_quality,
+                )
+                frame_analysis = FrameAnalysis(
+                    frame_index=source_frame_index,
+                    timestamp_ms=timestamp_ms,
+                    raw_metrics=metrics,
+                    smoothed_metrics=smoothed_metrics,
+                    metric_quality=metric_quality,
+                )
+                frame_analyses.append(frame_analysis)
                 csv_writer.writerow(
                     build_analysis_csv_row(
                         frame_index=source_frame_index,
                         timestamp_ms=timestamp_ms,
                         pose_landmarks=primary_pose_landmarks,
                         metrics=metrics,
+                        metric_quality=metric_quality,
+                        smoothed_metrics=smoothed_metrics,
                     )
                 )
 
@@ -146,15 +176,34 @@ def process_video(
         capture.release()
 
     movement_summary = summarize_movement(
-        metrics_by_frame,
+        frame_analyses,
         processed_frames=processed_frames,
         frames_with_pose=frames_with_pose,
+    )
+    plot_paths = create_metric_plots(frame_analyses, output_dir=output_dir)
+    write_run_manifest(
+        manifest_path=manifest_path,
+        input_path=input_path,
+        output_video_path=output_video_path,
+        analysis_csv_path=analysis_csv_path,
+        keyframe_paths=keyframe_paths,
+        plot_paths=plot_paths,
+        config=config,
+        movement_summary=movement_summary,
+        total_frames_reported=total_frames,
+        processed_frames=processed_frames,
+        frames_with_pose=frames_with_pose,
+        fps=fps,
+        width=width,
+        height=height,
     )
 
     return ProcessingSummary(
         input_path=input_path,
         output_video_path=output_video_path,
         analysis_csv_path=analysis_csv_path,
+        manifest_path=manifest_path,
+        plot_paths=plot_paths,
         keyframe_paths=keyframe_paths,
         movement_summary=movement_summary,
         total_frames=total_frames,

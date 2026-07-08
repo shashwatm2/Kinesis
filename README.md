@@ -59,13 +59,16 @@ The command writes:
 
 - `*_pose_overlay.mp4`: processed video with skeleton overlay.
 - `keyframe_*.jpg`: representative annotated frames.
-- `*_movement_analysis.csv`: frame timestamps, normalized landmark coordinates, visibility scores, and calculated movement metrics.
+- `*_movement_analysis.csv`: frame timestamps, normalized landmark coordinates, visibility scores, raw metrics, quality flags, and smoothed metrics.
+- `plot_*.png`: time-series plots for quick visual inspection.
+- `run_manifest.json`: the input, configuration, outputs, video metadata, and run summary.
 
 ## Engineering Principles
 
 - Keep experiments small, named, and documented.
 - Separate product interface code from reusable processing code.
 - Prefer repeatable command-line workflows before polishing UI.
+- Keep raw values and quality-filtered values side by side so analysis decisions stay inspectable.
 - Add tests around deterministic code first; add heavier integration tests when model assets and sample videos are stable.
 - Treat movement analysis carefully: visual overlays are helpful feedback, not clinical claims.
 

@@ -5,6 +5,15 @@ from typing import Any
 
 from kinesis.experiments.exp001.landmarks import LANDMARK_NAMES, landmark_value
 from kinesis.experiments.exp001.metrics import METRIC_COLUMNS, FrameMetrics
+from kinesis.experiments.exp001.quality import (
+    QUALITY_COLUMNS,
+    MetricQualityResult,
+    quality_csv_values,
+)
+from kinesis.experiments.exp001.smoothing import (
+    SMOOTHED_METRIC_COLUMNS,
+    smoothed_metric_values,
+)
 
 FRAME_COLUMNS: tuple[str, ...] = (
     "frame_index",
@@ -21,7 +30,13 @@ def analysis_csv_fieldnames() -> list[str]:
         for index, name in enumerate(LANDMARK_NAMES)
         for value_name in LANDMARK_VALUE_COLUMNS
     ]
-    return [*FRAME_COLUMNS, *landmark_columns, *METRIC_COLUMNS]
+    return [
+        *FRAME_COLUMNS,
+        *landmark_columns,
+        *METRIC_COLUMNS,
+        *QUALITY_COLUMNS,
+        *SMOOTHED_METRIC_COLUMNS,
+    ]
 
 
 def build_analysis_csv_row(
@@ -30,6 +45,8 @@ def build_analysis_csv_row(
     timestamp_ms: int,
     pose_landmarks: Sequence[Any],
     metrics: FrameMetrics,
+    metric_quality: dict[str, MetricQualityResult],
+    smoothed_metrics: FrameMetrics,
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "frame_index": frame_index,
@@ -47,9 +64,10 @@ def build_analysis_csv_row(
             )
 
     row.update(metrics.as_dict())
+    row.update(quality_csv_values(metric_quality))
+    row.update(smoothed_metric_values(smoothed_metrics))
     return row
 
 
 def _landmark_column(index: int, name: str, value_name: str) -> str:
     return f"landmark_{index:02d}_{name}_{value_name}"
-
