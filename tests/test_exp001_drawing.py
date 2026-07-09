@@ -34,10 +34,28 @@ def test_extract_keyframe_indices_spreads_frames_across_video() -> None:
     assert extract_keyframe_indices(total_frames=10, max_keyframes=4) == [0, 3, 6, 9]
 
 
+def test_extract_keyframe_indices_supports_more_than_default_keyframes() -> None:
+    assert extract_keyframe_indices(total_frames=20, max_keyframes=10) == [
+        0,
+        2,
+        4,
+        6,
+        8,
+        11,
+        13,
+        15,
+        17,
+        19,
+    ]
+
+
+def test_extract_keyframe_indices_can_be_disabled() -> None:
+    assert extract_keyframe_indices(total_frames=10, max_keyframes=0) == []
+
+
 def test_extract_keyframe_indices_handles_empty_video() -> None:
     assert extract_keyframe_indices(total_frames=0, max_keyframes=4) == []
 
 
 def _empty_landmarks() -> list[Landmark]:
     return [Landmark(x=-1.0, y=-1.0, visibility=0.0, presence=0.0) for _ in range(33)]
-

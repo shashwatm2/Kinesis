@@ -187,11 +187,8 @@ def _center_of_body_x(
 
 def _average_landmark_score(pose_landmarks: Sequence[Any], key: str) -> float | None:
     values = [
-        value
-        for landmark in pose_landmarks
-        if (value := landmark_value(landmark, key)) is not None
+        value for landmark in pose_landmarks if (value := landmark_value(landmark, key)) is not None
     ]
     if not values:
         return None
     return sum(values) / len(values)
-

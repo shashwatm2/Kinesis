@@ -202,4 +202,3 @@ def _required_landmarks_visible(
         if not landmark_has_visible_position(pose_landmarks[index], visibility_threshold):
             return False
     return True
-

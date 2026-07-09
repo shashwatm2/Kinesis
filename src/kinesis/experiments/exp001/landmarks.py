@@ -70,4 +70,3 @@ def landmark_has_visible_position(landmark: Any, visibility_threshold: float) ->
     if presence is not None and presence < visibility_threshold:
         return False
     return True
-

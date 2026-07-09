@@ -96,4 +96,3 @@ def _body_landmarks(
     landmarks[27] = Landmark(x=0.40, y=1.00, visibility=1.0, presence=1.0)
     landmarks[28] = Landmark(x=0.60, y=1.00, visibility=1.0, presence=1.0)
     return landmarks
-

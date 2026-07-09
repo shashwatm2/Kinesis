@@ -10,4 +10,3 @@ class Landmark:
     z: float = 0.0
     visibility: float | None = None
     presence: float | None = None
-

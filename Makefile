@@ -1,4 +1,4 @@
-.PHONY: setup test lint format exp001-app
+.PHONY: setup test lint format app exp001-app
 
 setup:
 	python -m pip install --upgrade pip
@@ -8,10 +8,12 @@ test:
 	pytest
 
 lint:
-	ruff check src tests apps
+	ruff check src tests apps streamlit_app.py
 
 format:
-	ruff format src tests apps
+	ruff format src tests apps streamlit_app.py
 
-exp001-app:
+app:
 	PYTHONPATH=src streamlit run apps/exp001_streamlit.py
+
+exp001-app: app

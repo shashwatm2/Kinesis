@@ -66,6 +66,12 @@ def process_video(
     height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     output_fps = fps / config.frame_stride
+    start_frame_index, end_frame_index = _frame_window(
+        fps=fps,
+        total_frames=total_frames,
+        start_time_seconds=config.start_time_seconds,
+        end_time_seconds=config.end_time_seconds,
+    )
 
     writer = cv2.VideoWriter(
         str(output_video_path),
@@ -77,7 +83,12 @@ def process_video(
         capture.release()
         raise RuntimeError(f"Could not create output video: {output_video_path}")
 
-    keyframe_indices = set(extract_keyframe_indices(total_frames, config.max_keyframes))
+    keyframe_indices = set(
+        extract_keyframe_indices(
+            max(0, end_frame_index - start_frame_index),
+            config.max_keyframes,
+        )
+    )
     keyframe_paths: list[Path] = []
     frame_analyses: list[FrameAnalysis] = []
     quality_evaluator = MetricQualityEvaluator(
@@ -104,6 +115,11 @@ def process_video(
                 ok, frame = capture.read()
                 if not ok:
                     break
+                if source_frame_index >= end_frame_index:
+                    break
+                if source_frame_index < start_frame_index:
+                    source_frame_index += 1
+                    continue
 
                 if source_frame_index % config.frame_stride != 0:
                     source_frame_index += 1
@@ -161,7 +177,8 @@ def process_video(
 
                 if _should_save_keyframe(
                     source_frame_index=source_frame_index,
-                    total_frames=total_frames,
+                    start_frame_index=start_frame_index,
+                    selected_frame_count=max(0, end_frame_index - start_frame_index),
                     keyframe_indices=keyframe_indices,
                     keyframe_count=len(keyframe_paths),
                     max_keyframes=config.max_keyframes,
@@ -234,16 +251,42 @@ def _create_pose_landmarker(mp: Any, config: PoseEstimationConfig) -> Any:
 def _should_save_keyframe(
     *,
     source_frame_index: int,
-    total_frames: int,
+    start_frame_index: int,
+    selected_frame_count: int,
     keyframe_indices: set[int],
     keyframe_count: int,
     max_keyframes: int,
 ) -> bool:
     if max_keyframes <= 0:
         return False
-    if total_frames > 0:
-        return source_frame_index in keyframe_indices
+    if selected_frame_count > 0:
+        return (source_frame_index - start_frame_index) in keyframe_indices
     return keyframe_count < max_keyframes
+
+
+def _frame_window(
+    *,
+    fps: float,
+    total_frames: int,
+    start_time_seconds: float | None,
+    end_time_seconds: float | None,
+) -> tuple[int, int]:
+    start_frame_index = 0
+    if start_time_seconds is not None:
+        start_frame_index = max(0, int(start_time_seconds * fps))
+
+    if total_frames > 0:
+        end_frame_index = total_frames
+    else:
+        end_frame_index = 2**63 - 1
+
+    if end_time_seconds is not None:
+        end_frame_index = min(end_frame_index, max(0, int(end_time_seconds * fps)))
+
+    if end_frame_index <= start_frame_index:
+        raise ValueError("Selected video window contains no frames.")
+
+    return start_frame_index, end_frame_index
 
 
 def _import_cv2() -> Any:

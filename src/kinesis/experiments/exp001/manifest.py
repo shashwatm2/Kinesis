@@ -62,4 +62,3 @@ def _config_dict(config: PoseEstimationConfig) -> dict[str, Any]:
     values = asdict(config)
     values["model_path"] = str(config.model_path)
     return values
-

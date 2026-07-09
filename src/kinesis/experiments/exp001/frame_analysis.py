@@ -17,4 +17,3 @@ class FrameAnalysis:
     @property
     def timestamp_seconds(self) -> float:
         return self.timestamp_ms / 1000
-

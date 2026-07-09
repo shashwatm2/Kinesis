@@ -41,7 +41,5 @@ class MetricSmoother:
 
 def smoothed_metric_values(metrics: FrameMetrics) -> dict[str, float | None]:
     return {
-        f"smoothed_{metric_name}": getattr(metrics, metric_name)
-        for metric_name in METRIC_COLUMNS
+        f"smoothed_{metric_name}": getattr(metrics, metric_name) for metric_name in METRIC_COLUMNS
     }
-

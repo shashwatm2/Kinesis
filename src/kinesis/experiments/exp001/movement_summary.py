@@ -87,13 +87,10 @@ def movement_summary_lines(summary: MovementSummary) -> list[str]:
 
     if summary.average_landmark_visibility is not None:
         lines.append(
-            "Average landmark visibility/confidence was "
-            f"{summary.average_landmark_visibility:.2f}."
+            f"Average landmark visibility/confidence was {summary.average_landmark_visibility:.2f}."
         )
 
-    lines.append(
-        "Movement values below use quality-filtered, smoothed frame measurements."
-    )
+    lines.append("Movement values below use quality-filtered, smoothed frame measurements.")
 
     if (
         summary.average_shoulder_height_asymmetry is not None

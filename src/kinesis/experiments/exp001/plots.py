@@ -133,4 +133,3 @@ def _series_values(
         smoothed_values.append(smoothed_value)
 
     return times, raw_values, smoothed_values
-

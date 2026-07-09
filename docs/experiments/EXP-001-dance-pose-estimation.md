@@ -114,6 +114,12 @@ EXP-001 explicitly requests MediaPipe's CPU delegate. This is slower than GPU ac
 
 Streamlit gives us a working upload flow quickly. It is not the final product architecture. For EXP-001, the goal is learning and feedback speed, not frontend permanence.
 
+The app exposes a bounded `Key frames` input for saving representative annotated frames. This is a UI guardrail: the core processor accepts any non-negative key-frame count, while the app caps the value to avoid accidentally generating too many image files during exploratory runs.
+
+The app also exposes optional start/end time controls. These define the movement window to process
+when the beginning or ending of the video is not part of the dance. All generated artifacts use that
+selected window: overlay video, movement CSV, plots, summary, and key frames.
+
 ### Keep A CLI
 
 The CLI matters because repeatable processing is easier to test, debug, and automate than clicking through a UI. The Streamlit app and CLI both call the same core processor.
@@ -135,12 +141,12 @@ This makes debugging easier because video IO, metric math, export formatting, an
 
 ### Keep Model Files Out Of Git
 
-MediaPipe `.task` files are generated/downloaded assets. They belong in `models/` locally and should not be committed.
+MediaPipe `.task` files are generated/downloaded assets. They belong in `models/` locally and should not be committed. The Streamlit app can download the public Pose Landmarker model at runtime so a fresh deployment does not depend on a private laptop file.
 
 ## First Milestone
 
 1. Install dependencies.
-2. Download `pose_landmarker_full.task`.
+2. Download `pose_landmarker_full.task` for CLI runs, or let the Streamlit app prepare it.
 3. Run the Streamlit app.
 4. Upload a short dance video.
 5. Confirm a skeleton overlay appears in the output video or key frames.

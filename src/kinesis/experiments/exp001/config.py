@@ -16,6 +16,8 @@ class PoseEstimationConfig:
     smoothing_window_frames: int = 5
     max_keyframes: int = 6
     frame_stride: int = 1
+    start_time_seconds: float | None = None
+    end_time_seconds: float | None = None
 
     def validate(self) -> None:
         if self.num_poses < 1:
@@ -26,6 +28,16 @@ class PoseEstimationConfig:
             raise ValueError("frame_stride must be at least 1.")
         if self.smoothing_window_frames < 1:
             raise ValueError("smoothing_window_frames must be at least 1.")
+        if self.start_time_seconds is not None and self.start_time_seconds < 0:
+            raise ValueError("start_time_seconds must be 0 or greater.")
+        if self.end_time_seconds is not None and self.end_time_seconds <= 0:
+            raise ValueError("end_time_seconds must be greater than 0.")
+        if (
+            self.start_time_seconds is not None
+            and self.end_time_seconds is not None
+            and self.end_time_seconds <= self.start_time_seconds
+        ):
+            raise ValueError("end_time_seconds must be greater than start_time_seconds.")
 
         confidence_values = {
             "min_pose_detection_confidence": self.min_pose_detection_confidence,
