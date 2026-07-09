@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from streamlit.testing.v1 import AppTest
+
+
+def test_kinesis_logo_asset_exists() -> None:
+    assert Path("assets/kinesis-logo.svg").is_file()
 
 
 def test_streamlit_app_renders_exp001_and_exp002_controls() -> None:

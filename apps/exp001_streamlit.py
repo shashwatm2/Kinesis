@@ -13,12 +13,17 @@ from kinesis.experiments.exp001.processor import process_video
 from kinesis.experiments.exp002.group_reference import compare_group_video_to_reference
 from kinesis.experiments.exp002.matching import MatchConfig, compare_movement_csvs
 from kinesis.experiments.exp002.pipeline import compare_movement_videos
+from kinesis.ui.streamlit_theme import apply_kinesis_theme, render_brand_header
 
 ROOT = Path(__file__).resolve().parents[1]
+LOGO_PATH = ROOT / "assets" / "kinesis-logo.svg"
 
 
 def main() -> None:
-    st.set_page_config(page_title="Kinesis Movement Lab", layout="wide")
+    st.set_page_config(page_title="Kinesis Movement Lab", page_icon="K", layout="wide")
+    apply_kinesis_theme()
+    st.logo(str(LOGO_PATH), size="large")
+    render_brand_header(LOGO_PATH)
     st.title("Kinesis Movement Lab")
 
     exp001_tab, exp002_tab = st.tabs(["EXP-001 Pose Analysis", "EXP-002 Reference Match"])
@@ -36,36 +41,42 @@ def _render_exp001() -> None:
         accept_multiple_files=False,
         key="exp001_dance_video",
     )
-    model_path_input = Path(
-        st.text_input("MediaPipe model path", value="models/pose_landmarker_full.task")
-    )
-    model_path = _resolve_model_path(model_path_input)
-    max_keyframes = st.number_input(
-        "Key frames",
-        min_value=0,
-        max_value=60,
-        value=6,
-        step=1,
-        help="Representative frames to save. Use 0 to skip key-frame images.",
-    )
+    model_column, keyframe_column = st.columns([2, 1])
+    with model_column:
+        model_path_input = Path(
+            st.text_input("MediaPipe model path", value="models/pose_landmarker_full.task")
+        )
+        model_path = _resolve_model_path(model_path_input)
+    with keyframe_column:
+        max_keyframes = st.number_input(
+            "Key frames",
+            min_value=0,
+            max_value=60,
+            value=6,
+            step=1,
+            help="Representative frames to save. Use 0 to skip key-frame images.",
+        )
     with st.expander("Analysis settings"):
-        metric_min_average_visibility = st.slider(
-            "Minimum average landmark visibility",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.05,
-        )
-        smoothing_window_frames = st.slider(
-            "Smoothing window",
-            min_value=1,
-            max_value=15,
-            value=5,
-        )
-        start_time_seconds, end_time_seconds = _render_trim_settings(
-            label_prefix="EXP-001",
-            key_prefix="exp001",
-        )
+        settings_left, settings_right = st.columns(2)
+        with settings_left:
+            metric_min_average_visibility = st.slider(
+                "Minimum average landmark visibility",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.05,
+            )
+            smoothing_window_frames = st.slider(
+                "Smoothing window",
+                min_value=1,
+                max_value=15,
+                value=5,
+            )
+        with settings_right:
+            start_time_seconds, end_time_seconds = _render_trim_settings(
+                label_prefix="EXP-001",
+                key_prefix="exp001",
+            )
 
     if uploaded_video is None:
         return
@@ -192,18 +203,21 @@ def _render_match_settings() -> MatchConfig:
 
 
 def _render_exp002_video_mode(match_config: MatchConfig) -> None:
-    reference_video = st.file_uploader(
-        "Reference video",
-        type=["mp4", "mov", "m4v", "avi"],
-        accept_multiple_files=False,
-        key="exp002_reference_video",
-    )
-    practice_video = st.file_uploader(
-        "Practice video",
-        type=["mp4", "mov", "m4v", "avi"],
-        accept_multiple_files=False,
-        key="exp002_practice_video",
-    )
+    reference_column, practice_column = st.columns(2)
+    with reference_column:
+        reference_video = st.file_uploader(
+            "Reference video",
+            type=["mp4", "mov", "m4v", "avi"],
+            accept_multiple_files=False,
+            key="exp002_reference_video",
+        )
+    with practice_column:
+        practice_video = st.file_uploader(
+            "Practice video",
+            type=["mp4", "mov", "m4v", "avi"],
+            accept_multiple_files=False,
+            key="exp002_practice_video",
+        )
 
     model_path_input = Path(
         st.text_input(
@@ -213,30 +227,33 @@ def _render_exp002_video_mode(match_config: MatchConfig) -> None:
     )
     model_path = _resolve_model_path(model_path_input)
     with st.expander("Pose processing settings"):
-        max_keyframes = st.number_input(
-            "EXP-002 key frames per video",
-            min_value=0,
-            max_value=60,
-            value=3,
-            step=1,
-        )
-        metric_min_average_visibility = st.slider(
-            "EXP-002 minimum average landmark visibility",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.05,
-        )
-        smoothing_window_frames = st.slider(
-            "EXP-002 smoothing window",
-            min_value=1,
-            max_value=15,
-            value=5,
-        )
-        start_time_seconds, end_time_seconds = _render_trim_settings(
-            label_prefix="EXP-002",
-            key_prefix="exp002_raw",
-        )
+        settings_left, settings_right = st.columns(2)
+        with settings_left:
+            max_keyframes = st.number_input(
+                "EXP-002 key frames per video",
+                min_value=0,
+                max_value=60,
+                value=3,
+                step=1,
+            )
+            metric_min_average_visibility = st.slider(
+                "EXP-002 minimum average landmark visibility",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.05,
+            )
+            smoothing_window_frames = st.slider(
+                "EXP-002 smoothing window",
+                min_value=1,
+                max_value=15,
+                value=5,
+            )
+        with settings_right:
+            start_time_seconds, end_time_seconds = _render_trim_settings(
+                label_prefix="EXP-002",
+                key_prefix="exp002_raw",
+            )
 
     if reference_video is None or practice_video is None:
         return
@@ -313,58 +330,65 @@ def _render_exp002_video_mode(match_config: MatchConfig) -> None:
 
 
 def _render_exp002_group_mode(match_config: MatchConfig) -> None:
-    group_video = st.file_uploader(
-        "Group video",
-        type=["mp4", "mov", "m4v", "avi"],
-        accept_multiple_files=False,
-        key="exp002_group_video",
-    )
-    model_path_input = Path(
-        st.text_input(
-            "Group MediaPipe model path",
-            value="models/pose_landmarker_full.task",
+    group_video_column, model_column = st.columns([1, 1])
+    with group_video_column:
+        group_video = st.file_uploader(
+            "Group video",
+            type=["mp4", "mov", "m4v", "avi"],
+            accept_multiple_files=False,
+            key="exp002_group_video",
         )
-    )
-    model_path = _resolve_model_path(model_path_input)
+    with model_column:
+        model_path_input = Path(
+            st.text_input(
+                "Group MediaPipe model path",
+                value="models/pose_landmarker_full.task",
+            )
+        )
+        model_path = _resolve_model_path(model_path_input)
     with st.expander("Group pose processing settings"):
-        max_people = st.number_input(
-            "Maximum people",
-            min_value=2,
-            max_value=8,
-            value=4,
-            step=1,
-        )
-        reference_track_id = st.number_input(
-            "Reference track ID",
-            min_value=1,
-            max_value=8,
-            value=1,
-            step=1,
-        )
-        max_keyframes = st.number_input(
-            "Group key frames",
-            min_value=0,
-            max_value=60,
-            value=3,
-            step=1,
-        )
-        metric_min_average_visibility = st.slider(
-            "Group minimum average landmark visibility",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.05,
-        )
-        smoothing_window_frames = st.slider(
-            "Group smoothing window",
-            min_value=1,
-            max_value=15,
-            value=5,
-        )
-        start_time_seconds, end_time_seconds = _render_trim_settings(
-            label_prefix="Group",
-            key_prefix="exp002_group",
-        )
+        identity_column, analysis_column, trim_column = st.columns(3)
+        with identity_column:
+            max_people = st.number_input(
+                "Maximum people",
+                min_value=2,
+                max_value=8,
+                value=4,
+                step=1,
+            )
+            reference_track_id = st.number_input(
+                "Reference track ID",
+                min_value=1,
+                max_value=8,
+                value=1,
+                step=1,
+            )
+        with analysis_column:
+            max_keyframes = st.number_input(
+                "Group key frames",
+                min_value=0,
+                max_value=60,
+                value=3,
+                step=1,
+            )
+            metric_min_average_visibility = st.slider(
+                "Group minimum average landmark visibility",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.05,
+            )
+            smoothing_window_frames = st.slider(
+                "Group smoothing window",
+                min_value=1,
+                max_value=15,
+                value=5,
+            )
+        with trim_column:
+            start_time_seconds, end_time_seconds = _render_trim_settings(
+                label_prefix="Group",
+                key_prefix="exp002_group",
+            )
 
     if group_video is None:
         return
@@ -409,18 +433,21 @@ def _render_exp002_group_mode(match_config: MatchConfig) -> None:
 
 
 def _render_exp002_csv_mode(match_config: MatchConfig) -> None:
-    reference_csv = st.file_uploader(
-        "Reference movement CSV",
-        type=["csv"],
-        accept_multiple_files=False,
-        key="exp002_reference_csv",
-    )
-    practice_csv = st.file_uploader(
-        "Practice movement CSV",
-        type=["csv"],
-        accept_multiple_files=False,
-        key="exp002_practice_csv",
-    )
+    reference_column, practice_column = st.columns(2)
+    with reference_column:
+        reference_csv = st.file_uploader(
+            "Reference movement CSV",
+            type=["csv"],
+            accept_multiple_files=False,
+            key="exp002_reference_csv",
+        )
+    with practice_column:
+        practice_csv = st.file_uploader(
+            "Practice movement CSV",
+            type=["csv"],
+            accept_multiple_files=False,
+            key="exp002_practice_csv",
+        )
 
     if reference_csv is None or practice_csv is None:
         return
