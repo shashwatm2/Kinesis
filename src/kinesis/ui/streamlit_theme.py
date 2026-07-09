@@ -10,14 +10,13 @@ def apply_kinesis_theme() -> None:
     st.markdown(f"<style>{KINESIS_CSS}</style>", unsafe_allow_html=True)
 
 
-def render_brand_header(logo_path: Path) -> None:
-    logo_src = _asset_data_uri(logo_path)
+def render_brand_header(wordmark_path: Path) -> None:
+    wordmark_src = _asset_data_uri(wordmark_path)
     st.markdown(
         f"""
         <div class="kinesis-brandbar">
-          <img class="kinesis-brandbar__logo" src="{logo_src}" alt="Kinesis logo" />
           <div class="kinesis-brandbar__copy">
-            <div class="kinesis-brandbar__name">Kinesis</div>
+            <img class="kinesis-brandbar__wordmark" src="{wordmark_src}" alt="Kinesis" />
             <div class="kinesis-brandbar__meta">Movement research lab</div>
           </div>
           <div class="kinesis-brandbar__status">Research build</div>
@@ -29,21 +28,25 @@ def render_brand_header(logo_path: Path) -> None:
 
 def _asset_data_uri(path: Path) -> str:
     encoded = b64encode(path.read_bytes()).decode("ascii")
-    return f"data:image/svg+xml;base64,{encoded}"
+    mime_type = {
+        ".png": "image/png",
+        ".svg": "image/svg+xml",
+    }.get(path.suffix.lower(), "application/octet-stream")
+    return f"data:{mime_type};base64,{encoded}"
 
 
 KINESIS_CSS = """
 :root {
-  --kinesis-bg: #f7f4ea;
+  --kinesis-bg: #f6f9fc;
   --kinesis-surface: #ffffff;
-  --kinesis-surface-soft: #fbfaf6;
-  --kinesis-ink: #18212f;
-  --kinesis-muted: #637083;
-  --kinesis-line: #dfe3dc;
-  --kinesis-teal: #2a9d8f;
-  --kinesis-teal-dark: #19776d;
-  --kinesis-amber: #e9c46a;
-  --kinesis-coral: #f26d5b;
+  --kinesis-surface-soft: #f9fbff;
+  --kinesis-ink: #06143d;
+  --kinesis-muted: #66758e;
+  --kinesis-line: #dbe5f1;
+  --kinesis-blue: #2448ff;
+  --kinesis-blue-dark: #092ccf;
+  --kinesis-cyan: #12b8d7;
+  --kinesis-navy: #020c2f;
 }
 
 .stApp {
@@ -52,7 +55,7 @@ KINESIS_CSS = """
 }
 
 [data-testid="stHeader"] {
-  background: rgba(247, 244, 234, 0.92);
+  background: rgba(246, 249, 252, 0.92);
   backdrop-filter: blur(14px);
 }
 
@@ -70,29 +73,22 @@ KINESIS_CSS = """
   align-items: center;
   background: var(--kinesis-surface);
   border: 1px solid var(--kinesis-line);
-  border-left: 5px solid var(--kinesis-teal);
+  border-left: 5px solid var(--kinesis-cyan);
   border-radius: 8px;
-  box-shadow: 0 18px 42px rgba(24, 33, 47, 0.08);
+  box-shadow: 0 18px 42px rgba(6, 20, 61, 0.08);
   display: flex;
-  gap: 16px;
   margin: 0 0 1.25rem;
-  padding: 16px 18px;
-}
-
-.kinesis-brandbar__logo {
-  height: 58px;
-  width: 58px;
+  padding: 14px 18px;
 }
 
 .kinesis-brandbar__copy {
   min-width: 0;
 }
 
-.kinesis-brandbar__name {
-  color: var(--kinesis-ink);
-  font-size: 1.4rem;
-  font-weight: 780;
-  line-height: 1.1;
+.kinesis-brandbar__wordmark {
+  display: block;
+  height: 54px;
+  width: auto;
 }
 
 .kinesis-brandbar__meta {
@@ -112,7 +108,7 @@ KINESIS_CSS = """
 }
 
 .kinesis-brandbar__status::before {
-  background: var(--kinesis-teal);
+  background: var(--kinesis-cyan);
   border-radius: 999px;
   content: "";
   display: inline-block;
@@ -158,17 +154,17 @@ h3 {
 }
 
 [data-testid="stTabs"] [aria-selected="true"]::after {
-  background: var(--kinesis-teal);
+  background: var(--kinesis-blue);
 }
 
 [data-testid="stFileUploaderDropzone"] {
   background: var(--kinesis-surface-soft);
-  border-color: rgba(42, 157, 143, 0.42);
+  border-color: rgba(36, 72, 255, 0.28);
   border-radius: 8px;
 }
 
 [data-testid="stFileUploaderDropzone"]:hover {
-  border-color: var(--kinesis-teal);
+  border-color: var(--kinesis-blue);
 }
 
 [data-testid="stExpander"] {
@@ -196,14 +192,14 @@ h3 {
 }
 
 .stButton > button[kind="primary"] {
-  background: var(--kinesis-teal);
-  border-color: var(--kinesis-teal);
+  background: var(--kinesis-blue);
+  border-color: var(--kinesis-blue);
   color: white;
 }
 
 .stButton > button[kind="primary"]:hover {
-  background: var(--kinesis-teal-dark);
-  border-color: var(--kinesis-teal-dark);
+  background: var(--kinesis-blue-dark);
+  border-color: var(--kinesis-blue-dark);
 }
 
 .stDownloadButton > button {
@@ -233,9 +229,9 @@ img {
     gap: 12px;
   }
 
-  .kinesis-brandbar__logo {
-    height: 50px;
-    width: 50px;
+  .kinesis-brandbar__wordmark {
+    height: 46px;
+    max-width: 70vw;
   }
 
   .kinesis-brandbar__status {

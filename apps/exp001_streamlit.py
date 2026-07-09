@@ -16,14 +16,19 @@ from kinesis.experiments.exp002.pipeline import compare_movement_videos
 from kinesis.ui.streamlit_theme import apply_kinesis_theme, render_brand_header
 
 ROOT = Path(__file__).resolve().parents[1]
-LOGO_PATH = ROOT / "assets" / "kinesis-logo.svg"
+ICON_PATH = ROOT / "assets" / "kinesis-icon.png"
+WORDMARK_PATH = ROOT / "assets" / "kinesis-wordmark.png"
 
 
 def main() -> None:
-    st.set_page_config(page_title="Kinesis Movement Lab", page_icon="K", layout="wide")
+    icon_bytes = ICON_PATH.read_bytes()
+    st.set_page_config(
+        page_title="Kinesis Movement Lab",
+        page_icon=icon_bytes,
+        layout="wide",
+    )
     apply_kinesis_theme()
-    st.logo(str(LOGO_PATH), size="large")
-    render_brand_header(LOGO_PATH)
+    render_brand_header(WORDMARK_PATH)
     st.title("Kinesis Movement Lab")
 
     exp001_tab, exp002_tab = st.tabs(["EXP-001 Pose Analysis", "EXP-002 Reference Match"])
