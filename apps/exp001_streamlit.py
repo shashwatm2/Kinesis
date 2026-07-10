@@ -13,6 +13,7 @@ from kinesis.experiments.exp001.processor import process_video
 from kinesis.experiments.exp002.group_reference import compare_group_video_to_reference
 from kinesis.experiments.exp002.matching import MatchConfig, compare_movement_csvs
 from kinesis.experiments.exp002.pipeline import compare_movement_videos
+from kinesis.ui.runtime_paths import resolve_runtime_model_path, run_output_dir
 from kinesis.ui.streamlit_theme import apply_kinesis_theme, render_brand_header
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,7 +93,7 @@ def _render_exp001() -> None:
             return
 
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-        output_dir = ROOT / "outputs" / "exp001" / run_id
+        output_dir = _run_output_dir("exp001", run_id)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         input_path = output_dir / Path(uploaded_video.name).name
@@ -269,7 +270,7 @@ def _render_exp002_video_mode(match_config: MatchConfig) -> None:
             return
 
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-        output_dir = ROOT / "outputs" / "exp002" / run_id
+        output_dir = _run_output_dir("exp002", run_id)
         input_dir = output_dir / "inputs"
         input_dir.mkdir(parents=True, exist_ok=True)
 
@@ -404,7 +405,7 @@ def _render_exp002_group_mode(match_config: MatchConfig) -> None:
             return
 
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-        output_dir = ROOT / "outputs" / "exp002" / run_id
+        output_dir = _run_output_dir("exp002", run_id)
         input_dir = output_dir / "inputs"
         input_dir.mkdir(parents=True, exist_ok=True)
 
@@ -459,7 +460,7 @@ def _render_exp002_csv_mode(match_config: MatchConfig) -> None:
 
     if st.button("Compare movement", type="primary", key="exp002_compare_movement"):
         run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-        output_dir = ROOT / "outputs" / "exp002" / run_id
+        output_dir = _run_output_dir("exp002", run_id)
         input_dir = output_dir / "inputs"
         input_dir.mkdir(parents=True, exist_ok=True)
 
@@ -618,9 +619,11 @@ def _save_uploaded_file(uploaded_file: Any, destination: Path) -> Path:
 
 
 def _resolve_model_path(model_path: Path) -> Path:
-    if model_path.is_absolute():
-        return model_path
-    return ROOT / model_path
+    return resolve_runtime_model_path(ROOT, model_path)
+
+
+def _run_output_dir(experiment_id: str, run_id: str) -> Path:
+    return run_output_dir(ROOT, experiment_id, run_id)
 
 
 def _prepare_pose_model(model_path: Path) -> Path | None:

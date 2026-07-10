@@ -4,10 +4,26 @@ from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
+from kinesis.ui.runtime_paths import resolve_runtime_model_path, runtime_root
+
 
 def test_kinesis_logo_assets_exist() -> None:
     assert Path("assets/kinesis-icon.png").is_file()
     assert Path("assets/kinesis-wordmark.png").is_file()
+
+
+def test_streamlit_runtime_dir_override_keeps_generated_files_out_of_source(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("KINESIS_RUNTIME_DIR", str(tmp_path))
+    project_root = Path("/mount/src/kinesis")
+
+    assert runtime_root(project_root) == tmp_path
+    assert (
+        resolve_runtime_model_path(project_root, Path("models/pose.task"))
+        == tmp_path / "models" / "pose.task"
+    )
 
 
 def test_streamlit_app_renders_exp001_and_exp002_controls() -> None:
