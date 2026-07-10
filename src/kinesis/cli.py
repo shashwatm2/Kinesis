@@ -264,7 +264,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare_group_parser.add_argument(
         "--max-people",
-        default=4,
+        default=2,
         type=int,
         help="Maximum number of people to detect in each frame.",
     )

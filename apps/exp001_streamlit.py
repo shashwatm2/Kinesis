@@ -359,13 +359,13 @@ def _render_exp002_group_mode(match_config: MatchConfig) -> None:
                 "Maximum people",
                 min_value=2,
                 max_value=8,
-                value=4,
+                value=2,
                 step=1,
             )
             reference_track_id = st.number_input(
                 "Reference track ID",
                 min_value=1,
-                max_value=8,
+                max_value=int(max_people),
                 value=1,
                 step=1,
             )

@@ -41,9 +41,18 @@ group video -> multi-pose detection -> track CSV per person -> reference-vs-trac
 ```
 
 Track IDs are assigned using motion prediction and body-normalized pose signatures. This is more
-stable than left-to-right ordering when dancers cross. It is still not a complete identity tracker:
-long occlusions, identical overlapping poses, or people leaving and re-entering the frame can still
-cause track mistakes.
+stable than left-to-right ordering when dancers cross.
+
+Group mode now treats `Maximum people` as both the MediaPipe pose limit and the maximum number of
+track IDs that may exist in the run. For the common two-dancer comparison, this locks the analysis
+to IDs 1 and 2. If one dancer is briefly hidden, overlaps another dancer, or spins in a way that
+causes a short pose dropout, the tracker keeps the existing ID available instead of immediately
+creating a new person.
+
+This is still not a complete identity tracker. Long full-body occlusions, very similar overlapping
+poses, people leaving and re-entering far from their prior location, or wrong `Maximum people`
+settings can still cause track mistakes. The labeled video and key frames are part of the workflow
+because track identity should be inspected before trusting comparison scores.
 
 ## Comparison Signals
 
@@ -115,7 +124,7 @@ kinesis exp002 compare-group-video \
   --input outputs/samples/group.mp4 \
   --model models/pose_landmarker_full.task \
   --reference-track-id 1 \
-  --max-people 4 \
+  --max-people 2 \
   --output-dir outputs/exp002/group-reference
 ```
 
@@ -144,7 +153,7 @@ Useful follow-up questions are:
 - Ranking dancers.
 - Scoring artistry or musicality.
 - Diagnosing movement quality.
-- Multi-person tracking.
+- Production-grade person re-identification through long occlusions.
 - Handling very different camera angles.
 - Handling mirrored choreography automatically.
 

@@ -110,11 +110,15 @@ kinesis exp002 compare-group-video \
   --input path/to/group-video.mp4 \
   --model models/pose_landmarker_full.task \
   --reference-track-id 1 \
-  --max-people 4 \
+  --max-people 2 \
   --output-dir outputs/exp002/group-reference \
   --start-time-seconds 3.0 \
   --end-time-seconds 28.0
 ```
+
+For two-dancer comparison, keep `--max-people 2` unless the clip truly contains more dancers you
+want to track. In group mode this value also caps the number of track IDs, which helps prevent brief
+overlaps or pose dropouts from becoming fake new people.
 
 The score is a movement-signal similarity score, not a dance-quality judgment or medical claim.
 

@@ -131,10 +131,23 @@ class PoseTrackAssigner:
     def __init__(
         self,
         *,
+        max_tracks: int | None = None,
         max_assignment_cost: float = 0.35,
-        max_missing_frames: int = 15,
+        lost_assignment_cost: float | None = None,
+        max_missing_frames: int = 90,
     ) -> None:
+        if max_tracks is not None and max_tracks < 1:
+            raise ValueError("max_tracks must be at least 1 when provided.")
+        if max_assignment_cost <= 0:
+            raise ValueError("max_assignment_cost must be positive.")
+        if lost_assignment_cost is not None and lost_assignment_cost < max_assignment_cost:
+            raise ValueError("lost_assignment_cost must be at least max_assignment_cost.")
+        if max_missing_frames < 0:
+            raise ValueError("max_missing_frames cannot be negative.")
+
+        self._max_tracks = max_tracks
         self._max_assignment_cost = max_assignment_cost
+        self._lost_assignment_cost = lost_assignment_cost or max_assignment_cost * 1.6
         self._max_missing_frames = max_missing_frames
         self._tracks: dict[int, _TrackState] = {}
         self._next_track_id = 1
@@ -148,11 +161,7 @@ class PoseTrackAssigner:
         if not detections:
             return []
 
-        active_track_ids = [
-            track_id
-            for track_id, track in self._tracks.items()
-            if frame_index - track.last_frame_index <= self._max_missing_frames
-        ]
+        active_track_ids = self._assignable_track_ids(frame_index)
         candidate_pairs = sorted(
             (
                 (
@@ -175,28 +184,21 @@ class PoseTrackAssigner:
         assignments: list[TrackAssignment] = []
 
         for distance, track_id, detection_index in candidate_pairs:
-            if distance > self._max_assignment_cost:
+            if distance > self._assignment_limit(self._tracks[track_id], frame_index):
                 continue
             if track_id in assigned_tracks or detection_index in assigned_detections:
                 continue
 
             detection = detections[detection_index]
-            track = self._tracks[track_id]
-            frames_elapsed = max(1, frame_index - track.last_frame_index)
-            track.velocity_x_per_frame = (detection.center.x - track.center.x) / frames_elapsed
-            track.velocity_y_per_frame = (detection.center.y - track.center.y) / frames_elapsed
-            track.center = detection.center
-            track.pose_signature = detection.pose_signature
-            track.last_frame_index = frame_index
-            assigned_tracks.add(track_id)
-            assigned_detections.add(detection_index)
             assignments.append(
-                TrackAssignment(
+                self._update_track(
                     track_id=track_id,
-                    pose_landmarks=detection.pose_landmarks,
-                    center=detection.center,
+                    detection=detection,
+                    frame_index=frame_index,
                 )
             )
+            assigned_tracks.add(track_id)
+            assigned_detections.add(detection_index)
 
         unassigned_detection_indices = [
             index for index in range(len(detections)) if index not in assigned_detections
@@ -205,6 +207,8 @@ class PoseTrackAssigner:
             unassigned_detection_indices,
             key=lambda index: detections[index].center.x,
         ):
+            if self._max_tracks is not None and len(self._tracks) >= self._max_tracks:
+                continue
             detection = detections[detection_index]
             track_id = self._next_track_id
             self._next_track_id += 1
@@ -223,6 +227,41 @@ class PoseTrackAssigner:
             )
 
         return sorted(assignments, key=lambda assignment: assignment.track_id)
+
+    def _assignable_track_ids(self, frame_index: int) -> list[int]:
+        if self._max_tracks is not None:
+            return list(self._tracks)
+
+        return [
+            track_id
+            for track_id, track in self._tracks.items()
+            if frame_index - track.last_frame_index <= self._max_missing_frames
+        ]
+
+    def _assignment_limit(self, track: _TrackState, frame_index: int) -> float:
+        if frame_index - track.last_frame_index > 1:
+            return self._lost_assignment_cost
+        return self._max_assignment_cost
+
+    def _update_track(
+        self,
+        *,
+        track_id: int,
+        detection: PoseDetection,
+        frame_index: int,
+    ) -> TrackAssignment:
+        track = self._tracks[track_id]
+        frames_elapsed = max(1, frame_index - track.last_frame_index)
+        track.velocity_x_per_frame = (detection.center.x - track.center.x) / frames_elapsed
+        track.velocity_y_per_frame = (detection.center.y - track.center.y) / frames_elapsed
+        track.center = detection.center
+        track.pose_signature = detection.pose_signature
+        track.last_frame_index = frame_index
+        return TrackAssignment(
+            track_id=track_id,
+            pose_landmarks=detection.pose_landmarks,
+            center=detection.center,
+        )
 
 
 def compare_group_video_to_reference(
@@ -282,7 +321,10 @@ def compare_group_video_to_reference(
         extract_keyframe_indices(selected_frame_count, pose_config.max_keyframes)
     )
     keyframe_paths: list[Path] = []
-    assigner = PoseTrackAssigner()
+    assigner = PoseTrackAssigner(
+        max_tracks=pose_config.num_poses,
+        max_missing_frames=max(1, round(fps * 2.0)),
+    )
     track_states: dict[int, _TrackAnalysisState] = {}
     processed_frames = 0
     frames_with_pose = 0
